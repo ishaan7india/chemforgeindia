@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,12 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
 import { ReactionVisualizer } from '@/components/ReactionVisualizer';
 import { SimulationResults } from '@/components/SimulationResults';
 import { calculateStoichiometry } from '@/lib/stoichiometry';
-import { Reaction, SimulationResult, Product } from '@/types/reaction';
+import { Reaction, SimulationResult } from '@/types/reaction';
 import { FlaskConical, Atom, ArrowLeft, Play, RotateCcw, Loader2 } from 'lucide-react';
 import { NavBar } from '@/components/NavBar';
 
@@ -23,7 +22,6 @@ export default function Simulator() {
   
   const [reactions, setReactions] = useState<Reaction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [simulating, setSimulating] = useState(false);
   const [saving, setSaving] = useState(false);
   
   // Form state
@@ -37,7 +35,9 @@ export default function Simulator() {
   // Simulation state
   const [result, setResult] = useState<SimulationResult | null>(null);
   const [progress, setProgress] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [availableReactantB, setAvailableReactantB] = useState<Reaction[]>([]);
+  const animationRef = useRef<number | null>(null);
   
   useEffect(() => {
     if (!authLoading && !user) {
@@ -58,6 +58,30 @@ export default function Simulator() {
       setReactantB('');
     }
   }, [reactantA, reactions]);
+
+  // Animation loop
+  useEffect(() => {
+    if (isPlaying && progress < 100) {
+      const animate = () => {
+        setProgress(prev => {
+          const next = prev + 0.5;
+          if (next >= 100) {
+            setIsPlaying(false);
+            return 100;
+          }
+          return next;
+        });
+        animationRef.current = requestAnimationFrame(animate);
+      };
+      const timeoutId = setTimeout(() => {
+        animationRef.current = requestAnimationFrame(animate);
+      }, 50);
+      return () => {
+        clearTimeout(timeoutId);
+        if (animationRef.current) cancelAnimationFrame(animationRef.current);
+      };
+    }
+  }, [isPlaying, progress]);
   
   const fetchReactions = async () => {
     const { data, error } = await supabase
@@ -107,16 +131,14 @@ export default function Simulator() {
       return;
     }
     
-    setSimulating(true);
     setProgress(0);
+    setIsPlaying(false);
     
-    // Determine which input corresponds to which reactant in the database
     let qA = parseFloat(quantityA);
     let qB = parseFloat(quantityB);
     let uA = unitA;
     let uB = unitB;
     
-    // If the user selected reactants in reverse order, swap the inputs
     if (reaction.reactant_a !== reactantA) {
       [qA, qB] = [qB, qA];
       [uA, uB] = [uB, uA];
@@ -124,18 +146,24 @@ export default function Simulator() {
     
     const simulationResult = calculateStoichiometry(reaction, qA, uA, qB, uB);
     setResult(simulationResult);
-    
-    // Animate progress
-    let currentProgress = 0;
-    const interval = setInterval(() => {
-      currentProgress += 2;
-      setProgress(Math.min(currentProgress, 100));
-      if (currentProgress >= 100) {
-        clearInterval(interval);
-        setSimulating(false);
-      }
-    }, 50);
   };
+  
+  const handlePlay = useCallback(() => {
+    if (progress >= 100) setProgress(0);
+    setIsPlaying(true);
+  }, [progress]);
+  
+  const handlePause = useCallback(() => setIsPlaying(false), []);
+  
+  const handleProgressReset = useCallback(() => {
+    setProgress(0);
+    setIsPlaying(false);
+  }, []);
+  
+  const handleProgressChange = useCallback((newProgress: number) => {
+    setProgress(newProgress);
+    setIsPlaying(false);
+  }, []);
   
   const handleSave = async () => {
     if (!result || !user) return;
@@ -182,6 +210,7 @@ export default function Simulator() {
   const handleReset = () => {
     setResult(null);
     setProgress(0);
+    setIsPlaying(false);
     setReactantA('');
     setReactantB('');
     setQuantityA('');
@@ -325,19 +354,10 @@ export default function Simulator() {
                       size="lg"
                       className="flex-1"
                       onClick={handleSimulate}
-                      disabled={!reactantA || !reactantB || !quantityA || !quantityB || simulating}
+                      disabled={!reactantA || !reactantB || !quantityA || !quantityB}
                     >
-                      {simulating ? (
-                        <>
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                          Simulating...
-                        </>
-                      ) : (
-                        <>
-                          <Play className="w-5 h-5" />
-                          Simulate Reaction
-                        </>
-                      )}
+                      <Play className="w-5 h-5" />
+                      Simulate Reaction
                     </Button>
                     <Button variant="outline" size="lg" onClick={handleReset}>
                       <RotateCcw className="w-5 h-5" />
@@ -348,7 +368,15 @@ export default function Simulator() {
               
               {/* Visualizer */}
               {result && (
-                <ReactionVisualizer result={result} progress={progress} />
+                <ReactionVisualizer 
+                  result={result} 
+                  progress={progress}
+                  isPlaying={isPlaying}
+                  onPlay={handlePlay}
+                  onPause={handlePause}
+                  onReset={handleProgressReset}
+                  onProgressChange={handleProgressChange}
+                />
               )}
             </div>
             
@@ -369,20 +397,6 @@ export default function Simulator() {
               )}
             </div>
           </div>
-          
-          {/* Progress Slider (when simulating) */}
-          {result && (
-            <div className="mt-8 glass-card p-6">
-              <Label className="mb-4 block">Manual Progress Control</Label>
-              <Slider
-                value={[progress]}
-                onValueChange={([value]) => setProgress(value)}
-                max={100}
-                step={1}
-                className="w-full"
-              />
-            </div>
-          )}
         </motion.div>
       </main>
     </div>
