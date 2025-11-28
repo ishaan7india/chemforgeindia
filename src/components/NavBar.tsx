@@ -1,53 +1,66 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { FlaskConical, Atom, LogOut, LayoutDashboard, Beaker } from 'lucide-react';
+import { LogOut, LayoutDashboard, FlaskConical } from 'lucide-react';
+import chemforgeLogo from '@/assets/chemforge-logo.png';
 
 export function NavBar() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  
+
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
   };
-  
+
   return (
-    <nav className="border-b border-border/50 bg-background/80 backdrop-blur-lg sticky top-0 z-50">
-      <div className="container flex items-center justify-between h-16">
-        <Link to="/dashboard" className="flex items-center gap-2 group">
-          <div className="relative">
-            <FlaskConical className="w-7 h-7 text-primary transition-transform group-hover:scale-110" />
-            <Atom className="w-3 h-3 text-secondary absolute -top-0.5 -right-0.5 animate-float" />
-          </div>
-          <span className="text-xl font-display font-bold text-gradient">ChemForge</span>
+    <motion.nav
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="border-b border-border/50 bg-background/80 backdrop-blur-xl sticky top-0 z-50"
+    >
+      <div className="container flex h-16 items-center justify-between">
+        <Link to="/" className="flex items-center gap-2 group">
+          <motion.img 
+            src={chemforgeLogo} 
+            alt="ChemForge Logo" 
+            className="w-10 h-10 object-contain"
+            whileHover={{ rotate: 10, scale: 1.1 }}
+            transition={{ type: 'spring', stiffness: 300 }}
+          />
+          <span className="font-display text-xl font-bold text-gradient group-hover:opacity-80 transition-opacity">
+            ChemForge
+          </span>
         </Link>
         
-        {user && (
-          <div className="flex items-center gap-4">
-            <Link to="/dashboard">
-              <Button variant="ghost" size="sm" className="gap-2">
-                <LayoutDashboard className="w-4 h-4" />
-                Dashboard
+        <div className="flex items-center gap-3">
+          {user ? (
+            <>
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/dashboard" className="flex items-center gap-2">
+                  <LayoutDashboard className="w-4 h-4" />
+                  Dashboard
+                </Link>
               </Button>
-            </Link>
-            <Link to="/simulator">
-              <Button variant="ghost" size="sm" className="gap-2">
-                <Beaker className="w-4 h-4" />
-                Simulator
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/simulator" className="flex items-center gap-2">
+                  <FlaskConical className="w-4 h-4" />
+                  Simulator
+                </Link>
               </Button>
-            </Link>
-            <div className="h-6 w-px bg-border" />
-            <span className="text-sm text-muted-foreground hidden md:block">
-              {user.email}
-            </span>
-            <Button variant="outline" size="sm" onClick={handleSignOut} className="gap-2">
-              <LogOut className="w-4 h-4" />
-              Sign Out
+              <Button variant="outline" size="sm" onClick={handleSignOut}>
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign Out
+              </Button>
+            </>
+          ) : (
+            <Button variant="glow" size="sm" asChild>
+              <Link to="/auth">Sign In</Link>
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </nav>
+    </motion.nav>
   );
 }
