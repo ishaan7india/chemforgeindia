@@ -444,7 +444,7 @@ export default function Index() {
               <span className="font-display font-semibold">ChemForge</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              © 2025 ChemForge India by IshSeven Enterprises. Built for chemistry enthusiasts.
+              © {new Date().getFullYear()} ChemForge India by IshSeven Enterprises. Built for chemistry enthusiasts.
             </p>
           </div>
         </footer>
