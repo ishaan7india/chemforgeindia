@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>ChemForge</title>
+    <script>
+      // Redirect 404s to the index.html
+      var pathname = window.location.pathname;
+      if (pathname.endsWith('/')) {
+        // If already ending with /, replace with index.html
+        window.location.href = pathname + 'index.html';
+      } else if (!pathname.includes('.')) {
+        // If no file extension, treat as route and redirect to index.html
+        var segments = pathname.split('/');
+        var baseIndex = segments.findIndex((seg, idx) => seg === 'chemforgeindia' || idx === segments.length - 1);
+        if (baseIndex !== -1) {
+          // Rebuild path to chemforgeindia/
+          var newPath = segments.slice(0, baseIndex + 1).join('/') + '/index.html';
+          window.location.href = newPath;
+        }
+      }
+    </script>
+  </head>
+  <body>
+  </body>
+</html>
