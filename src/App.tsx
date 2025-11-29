@@ -18,7 +18,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <<BrowserRouter basename="/chemforgeindia">>
+        <<BrowserRouter basename="/chemforgeindia">
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
